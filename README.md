@@ -1,7 +1,7 @@
 # Proxy Port SDK
-`proxyport2` Python package provides interfaces to the <a href="https://proxy-port.com" target="_blank">Proxy Port</a> API.
+`proxyport2` Python package provides interfaces to the <a href="https://proxy-port.com/en/scraping-proxy" target="_blank">Proxy Port</a> API.
 ## Prerequisites
-To use this package you will need a free API key. Get your AIP key <a href="https://account.proxy-port.com/scraping" target="_blank">here</a>.
+To use this package you will need a free API key. Get your API key <a href="https://account.proxy-port.com/scraping" target="_blank">here</a>.
 Detailed instructions <a href="https://proxy-port.com/en/scraping-proxy/getting-started" target="_blank">here</a>.
 ## Installation
 Install via <a href="https://pip.pypa.io/" target="_blank">pip</a>:

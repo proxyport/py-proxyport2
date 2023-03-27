@@ -7,7 +7,7 @@ here = os.path.abspath(os.path.dirname(__file__))
 
 NAME = 'proxyport2'
 DESCRIPTION = 'Proxy Port SDK package'
-URL = 'https://github.com/proxyport/py-proxyport2'
+URL = 'https://proxy-port.com/en/scraping-proxy'
 EMAIL = 'proxyportcom@gmail.com'
 AUTHOR = 'Proxy Port'
 REQUIRES_PYTHON = '>=3.6.0'
