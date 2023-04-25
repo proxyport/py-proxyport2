@@ -17,17 +17,17 @@ class ProxyPort:
     user_agent = 'py-proxyport2/{}'.format(__version__)
     headers = {'User-Agent': user_agent}
     ttl_seconds = 5 * 60
+    ttl_delta = timedelta(seconds=ttl_seconds)
 
     def __init__(self, api_key=None):
         self.log = logger
         self.new_proxy = list()
         self.known_proxy = dict()
-        self.used_proxy = dict()
         if not api_key:
             api_key = os.environ.get('PROXY_PORT_API_KEY')
         if api_key:
             self.set_api_key(api_key)
-            self.load_proxy()
+            self._load_proxy()
 
     def set_user_agent(self, user_agent):
         self.headers['User-Agent'] = '{} {}'.format(
@@ -36,7 +36,21 @@ class ProxyPort:
     def set_api_key(self, api_key):
         self.headers['X-API-KEY'] = api_key
 
-    def load_proxy(self):
+    def get_proxy(self):
+        self._refresh()
+        if not self.new_proxy:
+            if not self.known_proxy:
+                self.log.warning('Proxy list is empty')
+                return
+            return choice(list(self.known_proxy.keys()))
+        proxy = self.new_proxy.pop(0)
+        return proxy
+
+    def get_proxy_list(self):
+        self._refresh()
+        return self.new_proxy
+
+    def _load_proxy(self):
         if not self.headers.get('X-API-KEY'):
             raise AuthorizationError(
                 '\nAPI key are not specified, '
@@ -46,37 +60,32 @@ class ProxyPort:
                 ' print(get_proxy())\n'
             )
         try:
-            response = urlopen(self.get_proxy_list_request())
+            response = urlopen(Request(self.api_url, headers=self.headers))
             response_data = json.load(response)
         except Exception as e:
-            self.check_error(e)
+            self._check_error(e)
             return
         if response_data.get('warning') and not self.warned:
             self.log.warning(response_data.get('warning'))
             self.warned = True
+
+        self._proxy_list_gc()
+
+        new_proxy = []
         for proxy in response_data.get('data'):
-            if not self.known_proxy.get(proxy):
-                self.new_proxy = [proxy] + self.new_proxy
-                self.known_proxy[proxy] = True
-            elif self.used_proxy.get(proxy):
-                self.used_proxy[proxy] = self.get_ttl()
-        self.proxy_list_gc()
+            if not self.known_proxy.get(proxy) or proxy in self.new_proxy:
+                new_proxy.append(proxy)
+            self.known_proxy[proxy] = datetime.now() + self.ttl_delta
+        self.new_proxy = new_proxy
         self.last_load = datetime.now()
 
-    def get_proxy_list_request(self):
-        return Request(self.api_url, headers=self.headers)
-
-    def get_ttl(self):
-        return datetime.now() + timedelta(seconds=self.ttl_seconds)
-
-    def proxy_list_gc(self):
+    def _proxy_list_gc(self):
         now = datetime.now()
-        for address, ttl in list(self.used_proxy.items()):
+        for address, ttl in list(self.known_proxy.items()):
             if now > ttl:
-                del self.used_proxy[address]
                 del self.known_proxy[address]
 
-    def check_error(self, e):
+    def _check_error(self, e):
         auth_failed = False
         msg = str(e)
         if hasattr(e, 'code'):
@@ -90,25 +99,10 @@ class ProxyPort:
         if auth_failed:
             raise AuthorizationError(msg)
 
-    def get_proxy(self):
-        self.refresh()
-        if not self.new_proxy:
-            if not self.used_proxy:
-                self.log.warning('Proxy list is empty')
-                return
-            return choice(list(self.used_proxy.keys()))
-        proxy = self.new_proxy.pop(0)
-        self.used_proxy[proxy] = self.get_ttl()
-        return proxy
-
-    def get_proxy_list(self):
-        self.refresh()
-        return self.new_proxy
-
-    def refresh(self):
+    def _refresh(self):
         if (not self.last_load or
                 self.last_load < datetime.now() - timedelta(seconds=60)):
-            self.load_proxy()
+            self._load_proxy()
 
 
 class AuthorizationError(Exception):
